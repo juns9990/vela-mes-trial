@@ -1814,7 +1814,7 @@ body.ph-ui #view table.ph-cards tr.ph-grp > td{font-size:12.5px;font-weight:800;
    단일 HTML PWA. 데이터: localStorage stub (Firestore 어댑터는 §데이터레이어 참조).
    ================================================================================================= */
 
-const APP_VERSION = 'v0.40.34';
+const APP_VERSION = 'v0.40.35';
 /* ★ v0.31.5 — 물리 삭제 허용 마스터 컬렉션 (DB.remove 가드 · firestore.rules v4 와 1:1 동기)
    원장(records/lots/orders/plans/shipments/…)은 영구 불허 — voidDoc 마킹만. */
 const MASTER_DEL_COLS = ['items','bom','materials','workers','vendors','equipments','molds','defect_types','processes','drawings','expense_categories'];
@@ -1911,6 +1911,7 @@ function isTrial(){ return VELA_EDITION === 'trial'; }
 const _DEMO_FLAG_KEY = 'vela_demo';
 const _DEMO_LS_KEY   = isTrial() ? 'vela_mes_trial_v1' : 'vela_mes_demo_v1';
 const _TRIAL_SETUP_KEY = 'vela_trial_setup';
+function trialAdminName(){ const t = trialSetup(); return (t && t.admin) || '관리자'; }   // ★ v0.40.35 체험판 관리자 이름 (첫 화면에서 정함)
 function trialSetup(){ try { return JSON.parse(localStorage.getItem(_TRIAL_SETUP_KEY) || 'null'); } catch(e){ return null; } }
 /* ★ v0.38.3 — 데모 진입 플래그를 탭 단위(sessionStorage)로 (사용자 피드백 2026-10-09: 일반 접속인데 DEMO 배지가 떠서 데모판으로 오해).
    원인: 플래그가 localStorage 에 남아, 한 번 [데모 체험]을 누른 브라우저는 이후 정식 주소로 들어와도 게이트 없이 데모로 자동 부팅됐다
@@ -8780,7 +8781,7 @@ function renderGate(){
   const ver = document.getElementById('gt-ver'); if(ver) ver.textContent = APP_VERSION;
   // ★ v0.38.11 — 저장소 표시 = 실제 연결 (이전엔 서버 모드에서도 「로컬 DB」 고정 문구)
   const _gst = document.getElementById('gt-store');
-  if(_gst) _gst.textContent = isDemoMode() ? '데모 저장소' : (_ACTIVE_ADAPTER && _ACTIVE_ADAPTER.name === 'firestore' ? '저장소 서버 DB' : '저장소 로컬 DB');
+  if(_gst) _gst.textContent = isTrial() ? '체험판 · 이 PC 저장' : isDemoMode() ? '데모 저장소' : (_ACTIVE_ADAPTER && _ACTIVE_ADAPTER.name === 'firestore' ? '저장소 서버 DB' : '저장소 로컬 DB');
 
   // PIN 패드는 항상 렌더
   renderPinPad();
@@ -8903,8 +8904,11 @@ function renderPinPad(){
     ${!isDemoMode() && _gateDevLinks() ? `<div style="text-align:center;margin:2px 0;font-size:11px;color:var(--dim)"><a href="javascript:void(0)" id="gt-dev-login" style="color:var(--sub)">개발자 계정 (처음 등록 · 비밀번호 재설정)</a> · <a href="javascript:void(0)" id="gt-srv-test" style="color:var(--sub)">시험 서버 연결 (로그인 없이 · 이 기기만)</a></div>` : ''}
     ${_ACTIVE_ADAPTER && _ACTIVE_ADAPTER.name === 'firestore' && !isDemoMode() && !isDefaultFirebaseConfig() ? `<div style="text-align:center;margin:6px 0 2px;font-size:11px;color:var(--dim)">(시험 서버) 로그인 방식: <b>${isStaffMode() ? '직원 계정' : '기존'}</b> · <a href="javascript:void(0)" id="gt-authmode" style="color:var(--sub)">${isStaffMode() ? '기존 방식으로' : '직원 계정 방식으로'} 바꾸기</a> <span title="서버 규칙 v5 r7 이 게시된 서버는 직원 계정 방식만 동작합니다">ⓘ</span></div>` : ''}
     <!-- ★ v0.22.0 — 데모 체험 진입 (보조 스타일 · 주 동선 방해 금지) -->
-    <button class="gate-demo-btn" type="button" onclick="onDemoClick()" title="샘플 체험 또는 빈 상태 시연·테스트 (실데이터·서버와 완전 분리)">▶ 데모 · 테스트</button>
+    ${isTrial() ? `<button class="gate-demo-btn" type="button" id="gt-trial-admin" title="체험판 관리자로 다시 들어가기">▶ 체험 관리자(${_esc(trialAdminName())})로 들어가기</button>
+    <div style="text-align:center;font-size:11px;color:var(--dim);margin-top:6px;line-height:1.6">체험판 · 이 PC 저장 — 직원으로 들어가 보려면 관리자로 들어가 <b>기준정보 › 사용자</b>에 등록한 뒤 그 이름 + 처음 비밀번호 000000</div>`
+      : `<button class="gate-demo-btn" type="button" onclick="onDemoClick()" title="샘플 체험 또는 빈 상태 시연·테스트 (실데이터·서버와 완전 분리)">▶ 데모 · 테스트</button>`}
   `;
+  { const _ta = document.getElementById('gt-trial-admin'); if(_ta) _ta.onclick = () => { try { autoLoginDemo(); } catch(e){ toast('들어가기 실패 — 새로고침 뒤 다시', 'err'); } }; }
   // ★ v0.38.31 (GPT 추가 주의) — 시험 서버 연결은 로그인 전 진입 화면에서 (운영 서버에 먼저 로그인하지 않음)
   const _dl = document.getElementById('gt-dev-login'); if(_dl) _dl.onclick = () => openDevLoginModal();   // ★ v0.40.23 — 개발자 단독 로그인
   const _st = document.getElementById('gt-srv-test');
@@ -9176,6 +9180,7 @@ function renderTrialSetup(){
       <div style="font-size:12.5px;color:var(--sub);line-height:1.7;margin-bottom:14px">회사 자료를 직접 넣어 보며 체험합니다. 입력한 자료는 <b>이 PC 의 이 브라우저에만</b> 저장되고 서버로 보내지지 않습니다 (다른 회사·다른 PC 와 섞이지 않음).<br>브라우저 기록을 지우면 사라지니 <b>설정 › 데이터 백업</b>으로 파일을 보관하세요 — 정식 도입 때 그 파일로 옮길 수 있습니다.</div>
       <div style="display:flex;flex-direction:column;gap:10px">
         <div><label>회사명</label><input id="ts-co" maxlength="40" placeholder="예: ○○정밀"></div>
+        <div><label>관리자 이름 <span style="color:var(--dim);font-weight:400">(체험하는 분 · 로그아웃 뒤 이 이름으로 다시 들어옴)</span></label><input id="ts-ad" maxlength="20" placeholder="관리자"></div>
         <div><label>시작 방법</label>
           <label class="apc-chk" style="display:flex;gap:8px;align-items:flex-start;margin:4px 0"><input type="radio" name="ts-mode" value="empty" checked> <span><b>빈 상태로 시작</b> — 우리 회사 품번·거래처·설비부터 직접 등록 (기본 공정·계정과목만 들어 있음)</span></label>
           <label class="apc-chk" style="display:flex;gap:8px;align-items:flex-start;margin:4px 0"><input type="radio" name="ts-mode" value="sample"> <span><b>예시 데이터로 둘러보기</b> — 가상 회사 자료가 채워진 상태 (나중에 설정에서 빈 상태로 다시 시작 가능)</span></label></div>
@@ -9188,7 +9193,7 @@ function renderTrialSetup(){
     if(!co){ document.getElementById('ts-err').textContent = '회사명을 적어 주세요'; return; }
     const mode = (document.querySelector('[name="ts-mode"]:checked') || {}).value || 'empty';
     try { localStorage.removeItem(_DEMO_LS_KEY); if(mode === 'empty') localStorage.setItem(_DEMO_EMPTY_KEY, '1'); else localStorage.removeItem(_DEMO_EMPTY_KEY);
-      localStorage.setItem(_TRIAL_SETUP_KEY, JSON.stringify({ company: co.slice(0, 40), mode, at: Date.now() })); }
+      localStorage.setItem(_TRIAL_SETUP_KEY, JSON.stringify({ company: co.slice(0, 40), admin: (String((document.getElementById('ts-ad') || {}).value || '').trim() || '관리자').slice(0, 20), mode, at: Date.now() })); }
     catch(e){ document.getElementById('ts-err').textContent = '이 브라우저는 저장소를 쓸 수 없습니다 (시크릿 창·저장 차단) — 일반 창에서 열어 주세요'; return; }
     location.reload();
   };
@@ -9217,7 +9222,8 @@ function resetDemoData(){
    seedDemoData 는 고정 id 멱등이라 재실행해도 중복·유실 없음 (LOT 는 존재 가드 · DB.set 동일값 덮어씀). */
 const DEMO_SEED_VER = 8;   // ★ v0.38.25 — 데모 확장(seedDemoExtension): 출하 정합성 정리 · 올해 말까지 수주 · 계획 · 구매 입고 시험 데이터 (v7 = 현장 작업자)
 function autoLoginDemo(){
-  let u = DB.query('users', x => x.name === '데모')[0];
+  const _NM = isTrial() ? trialAdminName() : '데모';   // ★ v0.40.35 — 체험판 = 첫 화면에서 정한 관리자 이름 (예시 데이터의 '데모' 사용자를 그 이름으로 바꿈)
+  let u = DB.query('users', x => x.name === _NM)[0] || (isTrial() ? DB.query('users', x => x.name === '데모')[0] : null);
   if(!u){
     // 첫 진입: 시드 실행 후 사용자 확보
     // ★ v0.28.7 — 빈 상태 데모(시연·테스트)는 샘플 시드 없이 시작: seedDemoData 스킵
@@ -9241,11 +9247,13 @@ function autoLoginDemo(){
     if(!isTrial() || !DB.get('settings','features')) DB.set('settings','features', { flags: allOn });   // ★ v0.40.34 체험판 = 처음만 전체 켬 (업체가 끈 기능은 유지)
   } catch(e){ console.warn('[VELA] demo flag sync failed', e); }
   if(isTrial()){ try { const ts = trialSetup(); if(ts && ts.company && !ts.applied){ DB.set('settings', 'company', { ...(DB.get('settings','company') || {}), name: ts.company }); localStorage.setItem(_TRIAL_SETUP_KEY, JSON.stringify({ ...ts, applied: Date.now() })); } } catch(e){} }
+  if(!u && isTrial()) u = DB.query('users', x => x.name === '데모')[0];   // 예시 데이터 시드가 만든 사용자
   if(!u){
     // 시드 실패 폴백 — 최소 사용자 하나 만들어서 진입
-    u = { id:'U-DEMO', name:'데모', pin:'000000', role:'manager', active:true, created_at:Date.now(), last_login:null };
+    u = { id:'U-DEMO', name:_NM, pin:'000000', role:'manager', active:true, created_at:Date.now(), last_login:null };
     DB.set('users', u.id, u);
   }
+  if(isTrial() && u.name !== _NM){ DB.set('users', u.id, { name: _NM }); u = DB.get('users', u.id) || { ...u, name: _NM }; }
   // ★ v0.37.2 — 데모에서도 「이 기기에서 자동 로그인」 시연: 기억된 현장 작업자가 토큰 검증을 통과하면 '데모' 대신 그 사용자로 진입
   if(getRememberedLogin()){
     tryRememberedLogin().then(w => enterAsUser(w || u)).catch(() => enterAsUser(u));
@@ -10160,7 +10168,7 @@ function renderSyncPill(){
     el.className = 'sync-pill';
     // ★ v0.22.0 — 데모 모드 표기 (별도 로컬 키)
     if(isDemoMode()){
-      if(txt) txt.textContent = `데모 저장 · 단말 D`;
+      if(txt) txt.textContent = isTrial() ? '체험판 · 이 PC 저장' : `데모 저장 · 단말 D`;
       el.title = `데모 체험 모드 · localStorage(${_DEMO_LS_KEY})에 즉시 저장 · 서버 접속 없음`;
     } else {
       if(txt) txt.textContent = `로컬 저장 · 단말 ${dev}`;
